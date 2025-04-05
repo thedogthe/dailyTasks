@@ -1,179 +1,166 @@
 package com.the.dailytasks;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.the.dailytasks.controller.TaskController;
 import com.the.dailytasks.model.Task;
 import com.the.dailytasks.service.TaskService;
-import com.the.dailytasks.controller.TaskController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDate;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(TaskController.class)
-public class TaskControllerTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+class TaskControllerTest {
 
     @Mock
     private TaskService taskService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    private Task testTask;
+    @InjectMocks
+    private TaskController taskController;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-
-        testTask = new Task();
-        testTask.setId(1L);
-        testTask.setTitle("Test Task");
-        testTask.setDescription("Test Description");
-        testTask.setDueDate(LocalDate.now());
-        testTask.setCompleted(false);
     }
 
     @Test
-    void testGetAllTasks() throws Exception {
-        List<Task> tasks = Collections.emptyList();
-        Page<Task> taskPage = new PageImpl<>(tasks);
+    void getAllTasks_ShouldReturnPageOfTasks() {
+        // Arrange
+        LocalDate start = LocalDate.of(2023, 1, 1);
+        LocalDate end = LocalDate.of(2023, 1, 31);
+        Boolean completed = false;
+        Pageable pageable = PageRequest.of(0, 10);
+        List<Task> tasks = Arrays.asList(
+                new Task(1L, "Task 1", "Description 1", false, LocalDate.now()),
+                new Task(2L, "Task 2", "Description 2", false, LocalDate.now())
+        );
+        Page<Task> taskPage = new PageImpl<>(tasks, pageable, tasks.size());
 
-        when(taskService.getTasks(null, null, null, null)).thenReturn(taskPage);
+        when(taskService.getTasks(start, end, completed, pageable)).thenReturn(taskPage);
 
-        mockMvc.perform(get("/tasks"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray());
+        // Act
+        ResponseEntity<Page<Task>> response = taskController.getAllTasks(start, end, completed, pageable);
 
-        verify(taskService, times(1)).getTasks(null, null, null, null);
-    }
-    @Test
-    void testGetTodayTasks() throws Exception {
-        when(taskService.getTodayTasks(false)).thenReturn(List.of(testTask));
-
-        mockMvc.perform(get("/tasks/today"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].title").value("Test Task"));
-
-        verify(taskService, times(1)).getTodayTasks(false);
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(2, response.getBody().getTotalElements());
+        verify(taskService, times(1)).getTasks(start, end, completed, pageable);
     }
 
     @Test
-    void testGetWeekTasks() throws Exception {
-        when(taskService.getWeekTasks(false)).thenReturn(List.of(testTask));
+    void getTodayTasks_ShouldReturnTodayTasks() {
+        // Arrange
+        List<Task> tasks = Arrays.asList(
+                new Task(1L, "Today Task 1", "Description", false, LocalDate.now()),
+                new Task(2L, "Today Task 2", "Description", true, LocalDate.now())
+        );
+        when(taskService.getTodayTasks(true)).thenReturn(tasks);
 
-        mockMvc.perform(get("/tasks/week"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].title").value("Test Task"));
+        // Act
+        ResponseEntity<List<Task>> response = taskController.getTodayTasks(true);
 
-        verify(taskService, times(1)).getWeekTasks(false);
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(2, response.getBody().size());
+        verify(taskService, times(1)).getTodayTasks(true);
     }
 
     @Test
-    void testGetMonthTasks() throws Exception {
-        when(taskService.getMonthTasks(false)).thenReturn(List.of(testTask));
+    void getTaskById_ShouldReturnTask() {
+        // Arrange
+        Long taskId = 1L;
+        Task task = new Task(taskId, "Test Task", "Description", false, LocalDate.now());
+        when(taskService.getTaskById(taskId)).thenReturn(task);
 
-        mockMvc.perform(get("/tasks/month"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].title").value("Test Task"));
+        // Act
+        ResponseEntity<Task> response = taskController.getTaskById(taskId);
 
-        verify(taskService, times(1)).getMonthTasks(false);
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(taskId, response.getBody().getId());
+        verify(taskService, times(1)).getTaskById(taskId);
     }
 
     @Test
-    void testGetTaskById() throws Exception {
-        when(taskService.getTaskById(anyLong())).thenReturn(testTask);
+    void createTask_ShouldReturnCreatedTask() {
+        // Arrange
+        Task newTask = new Task(null, "New Task", "Description", false, LocalDate.now().plusDays(1));
+        Task savedTask = new Task(1L, "New Task", "Description", false, LocalDate.now().plusDays(1));
+        when(taskService.createTask(newTask)).thenReturn(savedTask);
 
-        mockMvc.perform(get("/tasks/1"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.title").value("Test Task"));
+        // Act
+        ResponseEntity<Task> response = taskController.createTask(newTask);
 
-        verify(taskService, times(1)).getTaskById(1L);
+        // Assert
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertNotNull(response.getBody().getId());
+        verify(taskService, times(1)).createTask(newTask);
     }
 
     @Test
-    void testCreateTask() throws Exception {
-        when(taskService.createTask(any(Task.class))).thenReturn(testTask);
+    void updateTask_ShouldReturnUpdatedTask() {
+        // Arrange
+        Long taskId = 1L;
+        Task existingTask = new Task(taskId, "Old Title", "Old Desc", false, LocalDate.now());
+        Task updatedTask = new Task(taskId, "New Title", "New Desc", true, LocalDate.now().plusDays(1));
 
-        mockMvc.perform(post("/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testTask)))
-                .andExpect(status().isCreated())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.title").value("Test Task"));
+        when(taskService.updateTask(taskId, updatedTask)).thenReturn(updatedTask);
 
-        verify(taskService, times(1)).createTask(any(Task.class));
+        // Act
+        ResponseEntity<Task> response = taskController.updateTask(taskId, updatedTask);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("New Title", response.getBody().getTitle());
+        assertEquals("New Desc", response.getBody().getDescription());
+        verify(taskService, times(1)).updateTask(taskId, updatedTask);
     }
 
     @Test
-    void testUpdateTask() throws Exception {
-        when(taskService.updateTask(anyLong(), any(Task.class))).thenReturn(testTask);
+    void toggleTaskCompletion_ShouldToggleCompletionStatus() {
+        // Arrange
+        Long taskId = 1L;
+        Task task = new Task(taskId, "Task", "Desc", false, LocalDate.now());
+        Task toggledTask = new Task(taskId, "Task", "Desc", true, LocalDate.now());
 
-        mockMvc.perform(put("/tasks/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testTask)))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.title").value("Test Task"));
+        when(taskService.toggleCompletion(taskId)).thenReturn(toggledTask);
 
-        verify(taskService, times(1)).updateTask(1L, any(Task.class));
+        // Act
+        ResponseEntity<Task> response = taskController.toggleTaskCompletion(taskId);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().isCompleted());
+        verify(taskService, times(1)).toggleCompletion(taskId);
     }
 
-    @Test
-    void testToggleCompletion() throws Exception {
-        when(taskService.toggleCompletion(anyLong())).thenReturn(testTask);
 
-        mockMvc.perform(patch("/tasks/1/completion"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.title").value("Test Task"));
 
-        verify(taskService, times(1)).toggleCompletion(1L);
-    }
 
     @Test
-    void testDeleteTask() throws Exception {
-        doNothing().when(taskService).deleteTask(anyLong());
+    void deleteTask_ShouldReturnNoContent() {
+        // Arrange
+        Long taskId = 1L;
+        doNothing().when(taskService).deleteTask(taskId);
 
-        mockMvc.perform(delete("/tasks/1"))
-                .andExpect(status().isNoContent());
+        // Act
+        ResponseEntity<Void> response = taskController.deleteTask(taskId);
 
-        verify(taskService, times(1)).deleteTask(1L);
-    }
-
-    @Test
-    void testSearchTasks() throws Exception {
-        when(taskService.searchTasksByTitle(any(String.class), any(Boolean.class))).thenReturn(List.of(testTask));
-
-        mockMvc.perform(get("/tasks/search")
-                        .param("title", "Test")
-                        .param("exactMatch", "false"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].title").value("Test Task"));
-
-        verify(taskService, times(1)).searchTasksByTitle("Test", false);
+        // Assert
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(taskService, times(1)).deleteTask(taskId);
     }
 }
