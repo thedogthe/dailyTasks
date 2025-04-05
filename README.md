@@ -107,3 +107,5 @@ Unit тесты сервисов
 ```
 
 ## ✅ TODO
+
+Write and fix test 
