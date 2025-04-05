@@ -1,4 +1,4 @@
-package com.the.dailytasks.controller;
+package com.the.dailytasks.сontroller;
 
 import com.the.dailytasks.model.Task;
 import com.the.dailytasks.service.TaskService;
@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/tasks")
+@RequestMapping("/tasks")
 @RequiredArgsConstructor
 public class TaskController {
     private final TaskService taskService;
