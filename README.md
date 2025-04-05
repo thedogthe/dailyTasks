@@ -52,21 +52,27 @@ mvn spring-boot:run
 ### Создание задачи
 
 ```bash
-curl -X POST -H "Content-Type: application/json" \
--d '{"title":"Купить молоко","description":"2.5%","dueDate":"2023-12-01"}' \
-http://localhost:8080/api/tasks
+curl --location 'http://localhost:8080/tasks' \
+--header 'Content-Type: application/json' \
+--header 'Content-Type: application/json' \
+--data '{
+    "title": "Купить молоко",
+    "description": "2.5%",
+    "dueDate": "2025-04-12",
+    "complete" : false
+}'
 ```
 
 ### Получение задач на неделю
 
 ```bash
-curl http://localhost:8080/api/tasks/week
+curl --location 'http://localhost:8080/tasks/week'
 ```
 
 ### Отметка задачи как выполненной
 
 ```bash
-curl -X PATCH http://localhost:8080/api/tasks/1/complete
+curl --location --request PATCH 'http://localhost:8080/tasks/3/completion'
 ```
 
 ## 🛠 Технологии
