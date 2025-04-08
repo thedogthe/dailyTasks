@@ -117,3 +117,11 @@ Unit тесты сервисов
 Write and fix test 
 
 ![img.png](docs/img.png)
+<div style="text-align: center;">
+Postman запрос 
+</div>
+
+![img.png](docs/ui.png)
+<div style="text-align: center;">
+Вариант UI(vue)
+</div>
